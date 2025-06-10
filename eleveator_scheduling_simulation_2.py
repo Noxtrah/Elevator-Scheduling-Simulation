@@ -89,7 +89,7 @@ def step(state, action_idx):
         closest_requests = [i for i in requested_floors if abs(i - old_floor) == min_dist]
 
         if any(abs(current_floor - i) < abs(old_floor - i) for i in closest_requests):
-            reward += 1
+            reward += 2
         elif all(abs(current_floor - i) > abs(old_floor - i) for i in closest_requests):
             reward -= 1
 
@@ -188,12 +188,16 @@ def evaluate_action_accuracy(return_only=False, steps=200):
         static_requests = old_requests.copy()
         has_requests = sum(static_requests) > 0
 
+        # Get next state and reward from the environment
         new_state, reward = step(state, action_idx)
         new_floor = new_state[0]
         new_requests = list(new_state[1])
+
+        # ✅ Properly accumulate real reward
         total_reward += reward
         total_actions += 1
 
+        # Determine expected action based on nearest request
         if has_requests:
             closest = min([i for i, r in enumerate(static_requests) if r == 1],
                           key=lambda x: abs(x - old_floor))
@@ -206,9 +210,11 @@ def evaluate_action_accuracy(return_only=False, steps=200):
         else:
             expected_action = "idle"
 
+        # Check if agent took correct action
         if action == expected_action:
             correct_actions += 1
 
+        # Count how many requests were served in this step
         served = [
             i for i in range(floors)
             if static_requests[i] == 1 and new_requests[i] == 0
@@ -217,12 +223,13 @@ def evaluate_action_accuracy(return_only=False, steps=200):
 
         state = new_state
 
+    # Final metrics
     action_accuracy = correct_actions / total_actions * 100
-    if return_only:
-        return action_accuracy
-
     avg_reward = total_reward / total_actions
     serve_rate = requests_served / total_actions * 100
+
+    if return_only:
+        return action_accuracy
 
     print("\n--- Action Accuracy Metrics ---")
     print(f"Total Steps: {total_actions}")
@@ -230,6 +237,7 @@ def evaluate_action_accuracy(return_only=False, steps=200):
     print(f"Average Reward/Step: {avg_reward:.2f}")
     print(f"Correct Actions Taken: {correct_actions} ({action_accuracy:.1f}%)")
     print(f"Requests Served: {requests_served} ({serve_rate:.1f}% of steps)")
+
 
 # Run evaluation 10 times and compute average accuracy
 accuracies = [evaluate_action_accuracy(return_only=True) for _ in range(100)]
@@ -240,9 +248,6 @@ print(f"\n📊 Average Action Accuracy over 100 runs: {average_accuracy:.2f}%")
 stddev = (sum((x - average_accuracy) ** 2 for x in accuracies) / len(accuracies))**0.5
 print(f"StdDev: {stddev:.2f}%")
 
-
-# simulate_trained_agent()
-# evaluate_action_accuracy()
 
 def evaluate_fixed_cases():
     fixed_test_cases = [
@@ -302,7 +307,6 @@ def evaluate_fixed_cases():
     print(f"Correct Actions: {correct_actions}/{total_cases} ({accuracy:.1f}%)")
     # print(f"Immediate Requests Served by Idling: {requests_served}/{total_cases} ({serve_rate:.1f}%)")
 
-evaluate_fixed_cases()
 
 def print_q_table_sample(limit=20):
     """
@@ -322,4 +326,7 @@ def print_q_table_sample(limit=20):
         print(f"{state_str:<10} {q_values[0]:>6.2f} {q_values[1]:>6.2f} {q_values[2]:>6.2f}")
         count += 1
 
+evaluate_fixed_cases()
+simulate_trained_agent()
+evaluate_action_accuracy()
 # print_q_table_sample(160)
